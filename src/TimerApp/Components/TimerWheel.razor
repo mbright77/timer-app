@@ -5,24 +5,24 @@
 @using TimerApp.Services
 
 <div class="timer-wheel-container">
-    <svg 
-        class="timer-wheel" 
-        viewBox="0 0 200 200"
-        @ref="wheelElement"
-        @onpointerdown="OnPointerDown"
-        @onpointermove="OnPointerMove"
-        @onpointerup="OnPointerUp"
-        @onpointerleave="OnPointerLeave"
-        @onkeydown="OnKeyDown"
-        tabindex="0"
-        touch-action="none"
-        role="slider"
-        aria-label="Timer wheel, @TotalMinutes minutes selected"
-        aria-valuemin="0"
-        aria-valuemax="@TimerService.MaxMinutes"
-        aria-valuenow="@TotalMinutes"
-        aria-valuetext="@($"{TotalMinutes} minutes")"
-    >
+     <svg 
+         class="timer-wheel" 
+         viewBox="0 0 200 200"
+         @ref="wheelElement"
+         @onpointerdown="OnPointerDown"
+         @onpointermove="OnPointerMove"
+         @onpointerup="OnPointerUp"
+         @onpointerleave="OnPointerLeave"
+         @onkeydown="OnKeyDown"
+         tabindex="0"
+         touch-action="none"
+         role="slider"
+         aria-label="Timer wheel, @TotalMinutes minutes selected. Drag to adjust or use arrow keys."
+         aria-valuemin="0"
+         aria-valuemax="@TimerService.MaxMinutes"
+         aria-valuenow="@TotalMinutes"
+         aria-valuetext="@($"{TotalMinutes} minutes")"
+     >
         <circle class="track" cx="100" cy="100" r="80" />
         
         <circle 
@@ -57,12 +57,13 @@
             </g>
         }
     </svg>
-    
-    <div class="keyboard-hint">
-        <button class="btn-mini" @onclick="() => AdjustMinutes(-1)" aria-label="Decrease time by 1 minute" disabled="@(TotalMinutes == 0 || IsRunning)">-1</button>
-        <button class="btn-mini" @onclick="() => AdjustMinutes(1)" aria-label="Increase time by 1 minute" disabled="@(TotalMinutes >= TimerService.MaxMinutes || IsRunning)">+1</button>
-    </div>
 </div>
+
+<fieldset class="keyboard-hint">
+    <legend>Keyboard controls</legend>
+    <button class="btn-mini" @onclick="() => AdjustMinutes(-1)" aria-label="Decrease time by 1 minute (keyboard: arrow left/down)" disabled="@(TotalMinutes == 0 || IsRunning)">-1</button>
+    <button class="btn-mini" @onclick="() => AdjustMinutes(1)" aria-label="Increase time by 1 minute (keyboard: arrow right/up)" disabled="@(TotalMinutes >= TimerService.MaxMinutes || IsRunning)">+1</button>
+</fieldset>
 
 @code {
     private const double Radius = 80;
