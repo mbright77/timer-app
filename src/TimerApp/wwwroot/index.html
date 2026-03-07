@@ -4,6 +4,11 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A simple, mobile-friendly timer with circular wheel control" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Timer" />
     <title>Timer Wheel</title>
     <base href="/timer-app/" />
     <link rel="stylesheet" href="css/app.css" />
@@ -46,6 +51,10 @@
                 
                 try {
                     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    if (this.audioContext.state === 'suspended') {
+                        await this.audioContext.resume();
+                    }
                     
                     const response = await fetch('audio/alarm.mp3');
                     if (!response.ok) {
@@ -93,6 +102,8 @@
             },
 
             playFallbackBeep: function() {
+                if (!this.audioContext) return;
+                
                 const oscillator = this.audioContext.createOscillator();
                 const gainNode = this.audioContext.createGain();
                 
