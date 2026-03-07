@@ -1,6 +1,7 @@
 @namespace TimerApp.Components
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject ITimerService TimerService
 @using TimerApp.Services
 
 <div class="timer-wheel-container">
@@ -58,8 +59,8 @@
     </svg>
     
     <div class="keyboard-hint">
-        <button class="btn-mini" @onclick="() => AdjustMinutes(-1)" aria-label="Decrease time by 1 minute">-1</button>
-        <button class="btn-mini" @onclick="() => AdjustMinutes(1)" aria-label="Increase time by 1 minute">+1</button>
+        <button class="btn-mini" @onclick="() => AdjustMinutes(-1)" aria-label="Decrease time by 1 minute" disabled="@(TotalMinutes == 0 || IsRunning)">-1</button>
+        <button class="btn-mini" @onclick="() => AdjustMinutes(1)" aria-label="Increase time by 1 minute" disabled="@(TotalMinutes >= TimerService.MaxMinutes || IsRunning)">+1</button>
     </div>
 </div>
 

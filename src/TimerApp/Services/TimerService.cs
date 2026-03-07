@@ -9,10 +9,14 @@ public enum TimerState
     Finished
 }
 
-public sealed class TimerService : IAsyncDisposable
+public sealed class TimerService : ITimerService
 {
     public const int MaxMinutes = 160;
     public const int MinutesPerRotation = 60;
+
+    // Explicit interface property implementations backed by the constants above
+    int ITimerService.MaxMinutes => MaxMinutes;
+    int ITimerService.MinutesPerRotation => MinutesPerRotation;
 
     private PeriodicTimer? _timer;
     private CancellationTokenSource? _cts;

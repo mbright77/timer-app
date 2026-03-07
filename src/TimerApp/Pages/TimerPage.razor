@@ -4,7 +4,7 @@
 @using TimerApp.Components
 @using TimerApp.Interop
 @implements IAsyncDisposable
-@inject TimerService TimerService
+@inject ITimerService TimerService
 @inject IJSRuntime JS
 
 <div class="timer-page">
@@ -64,6 +64,7 @@
     private void OnMinutesChanged(int minutes)
     {
         TimerService.SetDuration(minutes);
+        StateHasChanged();
     }
 
     private Task HandleStart()

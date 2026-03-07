@@ -4,6 +4,7 @@
   "description": "A simple, mobile-friendly timer with circular wheel control",
   "id": "/timer-app/",
   "start_url": "/timer-app/",
+  "scope": "/timer-app/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
