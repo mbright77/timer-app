@@ -16,6 +16,21 @@ This is a **Blazor WebAssembly Progressive Web App (PWA)** called **Timer Wheel*
 
 ## Critical Rules for Code Changes
 
+### ⚠️ ALWAYS Run Sub-Agents Before Committing
+
+**Before every commit, you MUST invoke the sub-agents to review the code.** This applies to all changes, regardless of size.
+
+1. **QA Tester Agent** — Reviews for bugs, edge cases, correctness
+2. **UI/UX Designer Agent** — Reviews for accessibility, usability
+3. **Architect Agent** — Reviews for structure, maintainability
+
+After receiving findings:
+- Fix all **critical** and **high** severity issues
+- Address **medium** issues if straightforward
+- Report back to user with what was fixed before committing
+
+This ensures code quality and is required before every commit.
+
 ### ⚠️ NEVER Auto-Commit or Auto-Push
 
 **You must NEVER automatically commit changes to git and push them to the remote repository unless the user explicitly requests it.**
