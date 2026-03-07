@@ -1,0 +1,54 @@
+@namespace TimerApp.Components
+
+<div class="time-display" aria-live="polite">
+    @if (IsFinished)
+    {
+        <span class="time-text finished">Time's up!</span>
+    }
+    else if (ShowHours)
+    {
+        <span class="time-text">@FormattedTime</span>
+    }
+    else
+    {
+        <span class="time-text">@FormattedTime</span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public TimeSpan RemainingTime { get; set; }
+
+    [Parameter]
+    public bool IsFinished { get; set; }
+
+    [Parameter]
+    public bool IsSetTimeMode { get; set; }
+
+    private bool ShowHours => RemainingTime.TotalHours >= 1;
+
+    private string FormattedTime
+    {
+        get
+        {
+            if (IsSetTimeMode)
+            {
+                var totalMinutes = (int)RemainingTime.TotalMinutes;
+                if (totalMinutes >= 60)
+                {
+                    var hours = totalMinutes / 60;
+                    var mins = totalMinutes % 60;
+                    return $"{hours}h {mins}m";
+                }
+                return $"{totalMinutes} min";
+            }
+
+            if (ShowHours)
+            {
+                return $"{(int)RemainingTime.TotalHours}:{RemainingTime.Minutes:D2}:{RemainingTime.Seconds:D2}";
+            }
+
+            return $"{RemainingTime.Minutes:D2}:{RemainingTime.Seconds:D2}";
+        }
+    }
+}

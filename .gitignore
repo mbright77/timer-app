@@ -1,0 +1,56 @@
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.cache
+*.log
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+**/[Pp]ackages/*
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Blazor
+*.g.cs
+*.g.i.cs
+TimerApp.styles.css
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+publish/

@@ -1,0 +1,111 @@
+@page "/"
+@namespace TimerApp.Pages
+@using TimerApp.Services
+@using TimerApp.Components
+@using TimerApp.Interop
+@implements IAsyncDisposable
+@inject TimerService TimerService
+@inject IJSRuntime JS
+
+<div class="timer-page">
+    <TimeDisplay 
+        RemainingTime="@displayTime" 
+        IsFinished="@isFinished"
+        IsSetTimeMode="@isSetTimeMode"
+    />
+
+    <TimerWheel 
+        TotalMinutes="@TimerService.TotalMinutes"
+        CurrentRotationMinutes="@TimerService.CurrentRotationMinutes"
+        Rotations="@TimerService.Rotations"
+        IsRunning="@TimerService.IsRunning"
+        OnMinutesChanged="OnMinutesChanged"
+    />
+
+    <ControlButtons 
+        State="@TimerService.State"
+        CanStart="@TimerService.CanStart"
+        OnStart="HandleStart"
+        OnPause="HandlePause"
+        OnResume="HandleResume"
+        OnReset="HandleReset"
+        OnRepeat="HandleRepeat"
+    />
+</div>
+
+@code {
+    private bool isFinished => TimerService.State == TimerState.Finished;
+    private bool isSetTimeMode => TimerService.State == TimerState.SetTime || TimerService.State == TimerState.Idle;
+    private TimeSpan displayTime => TimerService.State == TimerState.Idle 
+        ? TimeSpan.Zero 
+        : TimerService.RemainingTime;
+
+    protected override void OnInitialized()
+    {
+        TimerService.OnTick += OnTick;
+        TimerService.OnFinished += OnFinished;
+    }
+
+    private void OnTick(TimeSpan remaining)
+    {
+        InvokeAsync(() => StateHasChanged());
+    }
+
+#pragma warning disable CS4014 // Intentionally fire-and-forget for timer events
+#pragma warning disable CS1998 // Async method lacks await - intentional for event handlers
+    private async void OnFinished()
+    {
+        _ = PlayAlarmAsync();
+        InvokeAsync(() => StateHasChanged());
+    }
+#pragma warning restore CS1998
+#pragma warning restore CS4014
+
+    private void OnMinutesChanged(int minutes)
+    {
+        TimerService.SetDuration(minutes);
+    }
+
+    private Task HandleStart()
+    {
+        TimerService.Start();
+        return Task.CompletedTask;
+    }
+
+    private Task HandlePause()
+    {
+        TimerService.Pause();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleResume()
+    {
+        TimerService.Resume();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleReset()
+    {
+        TimerService.Reset();
+        return Task.CompletedTask;
+    }
+
+    private Task HandleRepeat()
+    {
+        TimerService.Repeat();
+        return Task.CompletedTask;
+    }
+
+    private async Task PlayAlarmAsync()
+    {
+        await AudioInterop.PlayAlarmAsync(JS);
+        await AudioInterop.VibrateAsync(JS);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        TimerService.OnTick -= OnTick;
+        TimerService.OnFinished -= OnFinished;
+        await TimerService.DisposeAsync();
+    }
+}

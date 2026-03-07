@@ -1,0 +1,70 @@
+@namespace TimerApp.Components
+@using TimerApp.Services
+
+<div class="control-buttons">
+    @switch (State)
+    {
+        case TimerState.Idle:
+        case TimerState.SetTime:
+            <button class="btn btn-primary btn-start" disabled="@(!CanStart)" @onclick="OnStartClick">
+                Start
+            </button>
+            break;
+
+        case TimerState.Running:
+            <button class="btn btn-secondary" @onclick="OnPauseClick">
+                Pause
+            </button>
+            <button class="btn btn-outline" @onclick="OnResetClick">
+                Reset
+            </button>
+            break;
+
+        case TimerState.Paused:
+            <button class="btn btn-primary" @onclick="OnResumeClick">
+                Resume
+            </button>
+            <button class="btn btn-outline" @onclick="OnResetClick">
+                Reset
+            </button>
+            break;
+
+        case TimerState.Finished:
+            <button class="btn btn-outline" @onclick="OnResetClick">
+                Reset
+            </button>
+            <button class="btn btn-primary" @onclick="OnRepeatClick">
+                Repeat
+            </button>
+            break;
+    }
+</div>
+
+@code {
+    [Parameter]
+    public TimerState State { get; set; }
+
+    [Parameter]
+    public bool CanStart { get; set; }
+
+    [Parameter]
+    public EventCallback OnStart { get; set; }
+
+    [Parameter]
+    public EventCallback OnPause { get; set; }
+
+    [Parameter]
+    public EventCallback OnResume { get; set; }
+
+    [Parameter]
+    public EventCallback OnReset { get; set; }
+
+    [Parameter]
+    public EventCallback OnRepeat { get; set; }
+
+    private async Task OnStartClick() => await OnStart.InvokeAsync();
+    private Task OnPauseClick() => OnPause.InvokeAsync();
+    private Task OnResumeClick() => OnResume.InvokeAsync();
+    private Task OnResetClick() => OnReset.InvokeAsync();
+    private Task OnRepeatClick() => OnRepeat.InvokeAsync();
+}

@@ -1,0 +1,194 @@
+@namespace TimerApp.Components
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@using TimerApp.Services
+
+<div class="timer-wheel-container">
+    <svg 
+        class="timer-wheel" 
+        viewBox="0 0 200 200"
+        @ref="wheelElement"
+        @onpointerdown="OnPointerDown"
+        @onpointermove="OnPointerMove"
+        @onpointerup="OnPointerUp"
+        @onpointerleave="OnPointerLeave"
+        @onkeydown="OnKeyDown"
+        tabindex="0"
+        touch-action="none"
+        role="slider"
+        aria-label="Timer wheel, @TotalMinutes minutes selected"
+        aria-valuemin="0"
+        aria-valuemax="@TimerService.MaxMinutes"
+        aria-valuenow="@TotalMinutes"
+        aria-valuetext="@($"{TotalMinutes} minutes")"
+    >
+        <circle class="track" cx="100" cy="100" r="80" />
+        
+        <circle 
+            class="progress" 
+            cx="100" 
+            cy="100" 
+            r="80"
+            stroke-dasharray="@StrokeDashArray"
+            stroke-dashoffset="@StrokeDashOffset"
+            transform="rotate(-90 100 100)"
+        />
+
+        @for (int i = 0; i < TimerService.MinutesPerRotation; i++)
+        {
+            var angle = i * 6;
+            var isLongTick = i % 5 == 0;
+            <line 
+                x1="100" 
+                y1="25" 
+                x2="100" 
+                y2="@(isLongTick ? 32 : 28)"
+                transform="rotate(@angle 100 100)"
+                class="tick @(isLongTick ? "long" : "short")"
+            />
+        }
+
+        @if (Rotations > 0)
+        {
+            <g class="rotation-badge">
+                <rect x="140" y="20" width="45" height="24" rx="12" />
+                <text x="162.5" y="36">+@(Rotations)h</text>
+            </g>
+        }
+    </svg>
+    
+    <div class="keyboard-hint">
+        <button class="btn-mini" @onclick="() => AdjustMinutes(-1)" aria-label="Decrease time by 1 minute">-1</button>
+        <button class="btn-mini" @onclick="() => AdjustMinutes(1)" aria-label="Increase time by 1 minute">+1</button>
+    </div>
+</div>
+
+@code {
+    private const double Radius = 80;
+    private const double Circumference = 2 * Math.PI * Radius;
+
+    private ElementReference wheelElement;
+    private bool isDragging;
+    private double? startAngle;
+    private int startMinutes;
+
+    [Parameter]
+    public int TotalMinutes { get; set; }
+
+    [Parameter]
+    public int CurrentRotationMinutes { get; set; }
+
+    [Parameter]
+    public int Rotations { get; set; }
+
+    [Parameter]
+    public bool IsRunning { get; set; }
+
+    [Parameter]
+    public Action<int>? OnMinutesChanged { get; set; }
+
+    private string StrokeDashArray => $"{Circumference}";
+    private string StrokeDashOffset
+    {
+        get
+        {
+            var progress = CurrentRotationMinutes / (double)TimerService.MinutesPerRotation;
+            return $"{Circumference * (1 - progress)}";
+        }
+    }
+
+    private async void OnPointerDown(PointerEventArgs e)
+    {
+        if (IsRunning) return;
+        isDragging = true;
+        startAngle = await GetAngleAsync(e);
+        startMinutes = TotalMinutes;
+    }
+
+    private async void OnPointerMove(PointerEventArgs e)
+    {
+        if (!isDragging || !startAngle.HasValue || IsRunning) return;
+
+        var currentAngle = await GetAngleAsync(e);
+        var deltaAngle = NormalizeAngleDelta(currentAngle - startAngle.Value);
+        
+        var deltaMinutes = (int)Math.Round(deltaAngle / 360 * TimerService.MinutesPerRotation);
+        var newMinutes = Math.Clamp(startMinutes + deltaMinutes, 0, TimerService.MaxMinutes);
+        
+        if (newMinutes != TotalMinutes)
+        {
+            OnMinutesChanged?.Invoke(newMinutes);
+        }
+    }
+
+    private double NormalizeAngleDelta(double delta)
+    {
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+        return delta;
+    }
+
+    private void OnPointerUp(PointerEventArgs e)
+    {
+        isDragging = false;
+        startAngle = null;
+    }
+
+    private void OnPointerLeave(PointerEventArgs e)
+    {
+        isDragging = false;
+        startAngle = null;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (IsRunning) return;
+        
+        if (e.Key == "ArrowUp" || e.Key == "ArrowRight")
+        {
+            AdjustMinutes(1);
+        }
+        else if (e.Key == "ArrowDown" || e.Key == "ArrowLeft")
+        {
+            AdjustMinutes(-1);
+        }
+    }
+
+    private void AdjustMinutes(int delta)
+    {
+        if (IsRunning) return;
+        var newMinutes = Math.Clamp(TotalMinutes + delta, 0, TimerService.MaxMinutes);
+        if (newMinutes != TotalMinutes)
+        {
+            OnMinutesChanged?.Invoke(newMinutes);
+        }
+    }
+
+    private async Task<double> GetAngleAsync(PointerEventArgs e)
+    {
+        var rect = await JS.InvokeAsync<BoundingRect>("getBoundingClientRect", wheelElement);
+        var centerX = rect.Left + rect.Width / 2;
+        var centerY = rect.Top + rect.Height / 2;
+        
+        var x = e.ClientX - centerX;
+        var y = e.ClientY - centerY;
+        
+        var angle = Math.Atan2(y, x) * 180 / Math.PI;
+        if (angle < 0) angle += 360;
+        
+        return angle;
+    }
+
+    private class BoundingRect
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
+}

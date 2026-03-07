@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timer Wheel</title>
+    <base href="/timer-app/" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="TimerApp.styles.css" rel="stylesheet" />
+    <link href="manifest.webmanifest" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.getBoundingClientRect = function(element) {
+            return element.getBoundingClientRect();
+        };
+
+        window.audioInterop = {
+            initialize: function() {
+                this.audioContext = null;
+                this.alarmBuffer = null;
+                this.isInitialized = false;
+            },
+
+            loadAlarmSound: async function() {
+                if (this.isInitialized) return;
+                
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    const response = await fetch('audio/alarm.mp3');
+                    if (!response.ok) {
+                        throw new Error('Audio file not found');
+                    }
+                    const arrayBuffer = await response.arrayBuffer();
+                    this.alarmBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    this.isInitialized = true;
+                } catch (e) {
+                    console.warn('Failed to load alarm sound, using fallback beep:', e);
+                    this.alarmBuffer = null;
+                    this.isInitialized = true;
+                }
+            },
+
+            playAlarm: async function() {
+                await this.loadAlarmSound();
+                
+                if (!this.audioContext) {
+                    console.warn('Audio context not available');
+                    return;
+                }
+
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+
+                if (this.alarmBuffer) {
+                    const source = this.audioContext.createBufferSource();
+                    source.buffer = this.alarmBuffer;
+                    source.loop = true;
+                    source.connect(this.audioContext.destination);
+                    source.start(0);
+                    this.currentAlarmSource = source;
+
+                    setTimeout(() => {
+                        if (this.currentAlarmSource) {
+                            this.currentAlarmSource.stop();
+                            this.currentAlarmSource = null;
+                        }
+                    }, 5000);
+                } else {
+                    this.playFallbackBeep();
+                }
+            },
+
+            playFallbackBeep: function() {
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.frequency.value = 880;
+                oscillator.type = 'square';
+                
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                
+                oscillator.start();
+                
+                setTimeout(() => {
+                    oscillator.stop();
+                }, 500);
+            },
+
+            vibrate: function() {
+                if (navigator.vibrate) {
+                    navigator.vibrate([500, 200, 500, 200, 500]);
+                }
+            }
+        };
+
+        document.addEventListener('touchstart', function initAudioOnFirstTouch() {
+            window.audioInterop.loadAlarmSound();
+            document.removeEventListener('touchstart', initAudioOnFirstTouch);
+        }, { once: true });
+
+        document.addEventListener('click', function initAudioOnFirstClick() {
+            window.audioInterop.loadAlarmSound();
+            document.removeEventListener('click', initAudioOnFirstClick);
+        }, { once: true });
+    </script>
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
+</body>
+
+</html>
