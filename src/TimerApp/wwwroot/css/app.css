@@ -160,58 +160,17 @@ html, body {
     dominant-baseline: middle;
 }
 
+/* Visually hidden but fully accessible to screen readers */
 .keyboard-hint {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: clamp(1rem, 3vw, 2rem);
-    justify-content: center;
-    align-items: flex-start;
-    width: 100%;
-    max-width: 420px;
-    flex: 0 0 auto;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
     border: none;
-    padding: 0;
-}
-
-.keyboard-hint legend {
-    flex-basis: 100%;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.25rem;
-    padding: 0;
-    text-align: center;
-    font-weight: 500;
-}
-
-.keyboard-hint .btn-mini {
-    background: var(--surface);
-    border: 1px solid var(--track);
-    color: var(--text);
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: background-color var(--transition);
-    min-height: 48px;
-    min-width: 48px;
-}
-
-.keyboard-hint .btn-mini:hover:not(:disabled) {
-    background: var(--track);
-}
-
-.keyboard-hint .btn-mini:disabled {
-    background: var(--button-disabled);
-    color: var(--text-secondary);
-    border-color: transparent;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.keyboard-hint .btn-mini:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 2px;
 }
 
 .control-buttons {
