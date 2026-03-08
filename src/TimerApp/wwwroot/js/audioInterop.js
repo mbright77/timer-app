@@ -2,6 +2,28 @@ window.getBoundingClientRect = function(element) {
     return element.getBoundingClientRect();
 };
 
+window.timerWheelInterop = {
+    setPointerCapture: function(element, pointerId) {
+        if (element && typeof element.setPointerCapture === 'function') {
+            try {
+                element.setPointerCapture(pointerId);
+            } catch {
+            }
+        }
+    },
+
+    releasePointerCapture: function(element, pointerId) {
+        if (element && typeof element.releasePointerCapture === 'function') {
+            try {
+                if (typeof element.hasPointerCapture === 'function' && element.hasPointerCapture(pointerId)) {
+                    element.releasePointerCapture(pointerId);
+                }
+            } catch {
+            }
+        }
+    }
+};
+
 window.audioInterop = {
     initialize: function() {
         this.audioContext = null;

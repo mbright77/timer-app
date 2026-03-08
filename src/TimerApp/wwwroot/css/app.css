@@ -116,6 +116,7 @@ html, body {
     aspect-ratio: 1;
     cursor: pointer;
     outline: none;
+    touch-action: none;
 }
 
 .timer-wheel:focus-visible {

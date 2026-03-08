@@ -13,10 +13,10 @@
          @onpointermove="OnPointerMove"
          @onpointerup="OnPointerUp"
          @onpointerleave="OnPointerLeave"
+         @onpointercancel="OnPointerCancel"
          @onkeydown="OnKeyDown"
-         tabindex="0"
-         touch-action="none"
-         role="slider"
+          tabindex="0"
+          role="slider"
          aria-label="Timer wheel. Drag to adjust or use arrow keys."
          aria-valuemin="0"
          aria-valuemax="@TimerService.MaxSeconds"
@@ -76,6 +76,7 @@
     private bool isDragging;
     private double? startAngle;
     private double _accumulatedDelta;
+    private long? _activePointerId;
 
     [Parameter]
     public int TotalSeconds { get; set; }
@@ -106,15 +107,61 @@
     {
         if (IsRunning) return;
         isDragging = true;
-        startAngle = await GetAngleAsync(e);
+        _activePointerId = e.PointerId;
+        await JS.InvokeVoidAsync("timerWheelInterop.setPointerCapture", wheelElement, e.PointerId);
+        startAngle = await GetAngleAsync(e.ClientX, e.ClientY);
     }
 
     private async void OnPointerMove(PointerEventArgs e)
     {
-        if (!isDragging || !startAngle.HasValue || IsRunning) return;
+        if (!isDragging || !startAngle.HasValue || IsRunning || _activePointerId != e.PointerId) return;
 
-        var currentAngle = await GetAngleAsync(e);
+        var currentAngle = await GetAngleAsync(e.ClientX, e.ClientY);
         var deltaAngle = NormalizeAngleDelta(currentAngle - startAngle.Value);
+        ApplyDelta(deltaAngle, currentAngle);
+    }
+
+    private double NormalizeAngleDelta(double delta)
+    {
+        while (delta > 180) delta -= 360;
+        while (delta < -180) delta += 360;
+        return delta;
+    }
+
+    private void OnPointerUp(PointerEventArgs e)
+    {
+        if (_activePointerId != e.PointerId) return;
+        _ = JS.InvokeVoidAsync("timerWheelInterop.releasePointerCapture", wheelElement, e.PointerId);
+        StopDragging();
+    }
+
+    private void OnPointerLeave(PointerEventArgs e)
+    {
+        if (e.PointerType != "mouse") return;
+        StopDragging();
+    }
+
+    private void OnPointerCancel(PointerEventArgs e)
+    {
+        if (_activePointerId != e.PointerId) return;
+        StopDragging();
+    }
+
+    private void StopDragging()
+    {
+        if (_activePointerId.HasValue)
+        {
+            _ = JS.InvokeVoidAsync("timerWheelInterop.releasePointerCapture", wheelElement, _activePointerId.Value);
+        }
+
+        isDragging = false;
+        startAngle = null;
+        _accumulatedDelta = 0;
+        _activePointerId = null;
+    }
+
+    private void ApplyDelta(double deltaAngle, double currentAngle)
+    {
         _accumulatedDelta += deltaAngle;
         startAngle = currentAngle;
 
@@ -161,27 +208,6 @@
         }
     }
 
-    private double NormalizeAngleDelta(double delta)
-    {
-        while (delta > 180) delta -= 360;
-        while (delta < -180) delta += 360;
-        return delta;
-    }
-
-    private void OnPointerUp(PointerEventArgs e)
-    {
-        isDragging = false;
-        startAngle = null;
-        _accumulatedDelta = 0;
-    }
-
-    private void OnPointerLeave(PointerEventArgs e)
-    {
-        isDragging = false;
-        startAngle = null;
-        _accumulatedDelta = 0;
-    }
-
     private void OnKeyDown(KeyboardEventArgs e)
     {
         if (IsRunning) return;
@@ -224,14 +250,14 @@
         return $"{totalSeconds / 60} minutes";
     }
 
-    private async Task<double> GetAngleAsync(PointerEventArgs e)
+    private async Task<double> GetAngleAsync(double clientX, double clientY)
     {
         var rect = await JS.InvokeAsync<BoundingRect>("getBoundingClientRect", wheelElement);
         var centerX = rect.Left + rect.Width / 2;
         var centerY = rect.Top + rect.Height / 2;
         
-        var x = e.ClientX - centerX;
-        var y = e.ClientY - centerY;
+        var x = clientX - centerX;
+        var y = clientY - centerY;
         
         var angle = Math.Atan2(y, x) * 180 / Math.PI;
         if (angle < 0) angle += 360;
