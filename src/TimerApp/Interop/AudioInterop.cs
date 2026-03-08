@@ -5,17 +5,14 @@ namespace TimerApp.Interop;
 public static class AudioInterop
 {
     public static async Task InitializeAsync(IJSRuntime js)
-    {
-        await js.InvokeVoidAsync("audioInterop.initialize");
-    }
+        => await js.InvokeVoidAsync("audioInterop.initialize");
+
+    public static async Task RequestNotificationPermissionAsync(IJSRuntime js)
+        => await js.InvokeVoidAsync("audioInterop.requestNotificationPermission");
 
     public static async Task PlayAlarmAsync(IJSRuntime js)
-    {
-        await js.InvokeVoidAsync("audioInterop.playAlarm");
-    }
+        => await js.InvokeVoidAsync("audioInterop.playAlarm");
 
     public static async Task VibrateAsync(IJSRuntime js)
-    {
-        await js.InvokeVoidAsync("audioInterop.vibrate");
-    }
+        => await js.InvokeVoidAsync("audioInterop.vibrate");
 }

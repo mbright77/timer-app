@@ -17,11 +17,11 @@
          tabindex="0"
          touch-action="none"
          role="slider"
-         aria-label="Timer wheel, @TotalMinutes minutes selected. Drag to adjust or use arrow keys."
+         aria-label="Timer wheel. Drag to adjust or use arrow keys."
          aria-valuemin="0"
-         aria-valuemax="@TimerService.MaxMinutes"
-         aria-valuenow="@TotalMinutes"
-         aria-valuetext="@($"{TotalMinutes} minutes")"
+         aria-valuemax="@TimerService.MaxSeconds"
+         aria-valuenow="@TotalSeconds"
+         aria-valuetext="@FormatAriaValueText(TotalSeconds)"
      >
         <circle class="track" cx="100" cy="100" r="80" />
         
@@ -35,10 +35,10 @@
             transform="rotate(-90 100 100)"
         />
 
-        @for (int i = 0; i < TimerService.MinutesPerRotation; i++)
+        @for (int i = 0; i < TickCount; i++)
         {
             var angle = i * 6;
-            var isLongTick = i % 5 == 0;
+            var isLongTick = i % 10 == 0;
             <line 
                 x1="100" 
                 y1="25" 
@@ -61,24 +61,27 @@
 
 <fieldset class="keyboard-hint">
     <legend>Keyboard controls</legend>
-    <button class="btn-mini" @onclick="() => AdjustMinutes(-1)" aria-label="Decrease time by 1 minute (keyboard: arrow left/down)" disabled="@(TotalMinutes == 0 || IsRunning)">-1</button>
-    <button class="btn-mini" @onclick="() => AdjustMinutes(1)" aria-label="Increase time by 1 minute (keyboard: arrow right/up)" disabled="@(TotalMinutes >= TimerService.MaxMinutes || IsRunning)">+1</button>
+    <button class="btn-mini" @onclick="() => AdjustSeconds(-1)" aria-label="Decrease time by dynamic step (keyboard: arrow left/down)" disabled="@(TotalSeconds == 0 || IsRunning)">-1</button>
+    <button class="btn-mini" @onclick="() => AdjustSeconds(1)" aria-label="Increase time by dynamic step (keyboard: arrow right/up)" disabled="@(TotalSeconds >= TimerService.MaxSeconds || IsRunning)">+1</button>
 </fieldset>
 
 @code {
     private const double Radius = 80;
     private const double Circumference = 2 * Math.PI * Radius;
+    private const int ThresholdSeconds = 300;
+    private const int TickCount = 60;
+    private const double DegreesPerRotation = 360.0;
 
     private ElementReference wheelElement;
     private bool isDragging;
     private double? startAngle;
-    private int startMinutes;
+    private double _accumulatedDelta;
 
     [Parameter]
-    public int TotalMinutes { get; set; }
+    public int TotalSeconds { get; set; }
 
     [Parameter]
-    public int CurrentRotationMinutes { get; set; }
+    public int CurrentRotationSeconds { get; set; }
 
     [Parameter]
     public int Rotations { get; set; }
@@ -87,14 +90,14 @@
     public bool IsRunning { get; set; }
 
     [Parameter]
-    public Action<int>? OnMinutesChanged { get; set; }
+    public Action<int>? OnSecondsChanged { get; set; }
 
     private string StrokeDashArray => $"{Circumference}";
     private string StrokeDashOffset
     {
         get
         {
-            var progress = CurrentRotationMinutes / (double)TimerService.MinutesPerRotation;
+            var progress = CurrentRotationSeconds / (double)TimerService.SecondsPerRotation;
             return $"{Circumference * (1 - progress)}";
         }
     }
@@ -104,7 +107,6 @@
         if (IsRunning) return;
         isDragging = true;
         startAngle = await GetAngleAsync(e);
-        startMinutes = TotalMinutes;
     }
 
     private async void OnPointerMove(PointerEventArgs e)
@@ -113,13 +115,49 @@
 
         var currentAngle = await GetAngleAsync(e);
         var deltaAngle = NormalizeAngleDelta(currentAngle - startAngle.Value);
-        
-        var deltaMinutes = (int)Math.Round(deltaAngle / 360 * TimerService.MinutesPerRotation);
-        var newMinutes = Math.Clamp(startMinutes + deltaMinutes, 0, TimerService.MaxMinutes);
-        
-        if (newMinutes != TotalMinutes)
+        _accumulatedDelta += deltaAngle;
+        startAngle = currentAngle;
+
+        var direction = Math.Sign(_accumulatedDelta);
+        if (direction == 0)
         {
-            OnMinutesChanged?.Invoke(newMinutes);
+            return;
+        }
+
+        var nextSeconds = TotalSeconds;
+        var changed = false;
+
+        while (true)
+        {
+            var stepSizeInSeconds = nextSeconds >= ThresholdSeconds ? 60 : 1;
+            var degreesPerStep = (DegreesPerRotation / TimerService.SecondsPerRotation) * stepSizeInSeconds;
+
+            if (Math.Abs(_accumulatedDelta) < degreesPerStep)
+            {
+                break;
+            }
+
+            var candidateSeconds = Math.Clamp(nextSeconds + (direction * stepSizeInSeconds), 0, TimerService.MaxSeconds);
+            if (candidateSeconds == nextSeconds)
+            {
+                _accumulatedDelta = 0;
+                break;
+            }
+
+            nextSeconds = candidateSeconds;
+            changed = true;
+            _accumulatedDelta -= direction * degreesPerStep;
+            direction = Math.Sign(_accumulatedDelta);
+
+            if (direction == 0)
+            {
+                break;
+            }
+        }
+
+        if (changed)
+        {
+            OnSecondsChanged?.Invoke(nextSeconds);
         }
     }
 
@@ -134,12 +172,14 @@
     {
         isDragging = false;
         startAngle = null;
+        _accumulatedDelta = 0;
     }
 
     private void OnPointerLeave(PointerEventArgs e)
     {
         isDragging = false;
         startAngle = null;
+        _accumulatedDelta = 0;
     }
 
     private void OnKeyDown(KeyboardEventArgs e)
@@ -148,22 +188,40 @@
         
         if (e.Key == "ArrowUp" || e.Key == "ArrowRight")
         {
-            AdjustMinutes(1);
+            AdjustSeconds(1);
         }
         else if (e.Key == "ArrowDown" || e.Key == "ArrowLeft")
         {
-            AdjustMinutes(-1);
+            AdjustSeconds(-1);
         }
     }
 
-    private void AdjustMinutes(int delta)
+    private void AdjustSeconds(int direction)
     {
         if (IsRunning) return;
-        var newMinutes = Math.Clamp(TotalMinutes + delta, 0, TimerService.MaxMinutes);
-        if (newMinutes != TotalMinutes)
+
+        var stepSizeInSeconds = TotalSeconds >= ThresholdSeconds ? 60 : 1;
+        var newSeconds = Math.Clamp(TotalSeconds + (direction * stepSizeInSeconds), 0, TimerService.MaxSeconds);
+
+        if (newSeconds != TotalSeconds)
         {
-            OnMinutesChanged?.Invoke(newMinutes);
+            OnSecondsChanged?.Invoke(newSeconds);
         }
+    }
+
+    private static string FormatAriaValueText(int totalSeconds)
+    {
+        if (totalSeconds <= 0)
+        {
+            return "0 minutes";
+        }
+
+        if (totalSeconds < ThresholdSeconds)
+        {
+            return $"{totalSeconds / 60} minutes {totalSeconds % 60} seconds";
+        }
+
+        return $"{totalSeconds / 60} minutes";
     }
 
     private async Task<double> GetAngleAsync(PointerEventArgs e)

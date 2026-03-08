@@ -20,6 +20,9 @@
     public TimeSpan RemainingTime { get; set; }
 
     [Parameter]
+    public int TotalSeconds { get; set; }
+
+    [Parameter]
     public bool IsFinished { get; set; }
 
     [Parameter]
@@ -33,14 +36,17 @@
         {
             if (IsSetTimeMode)
             {
-                var totalMinutes = (int)RemainingTime.TotalMinutes;
-                if (totalMinutes >= 60)
+                if (TotalSeconds <= 0)
                 {
-                    var hours = totalMinutes / 60;
-                    var mins = totalMinutes % 60;
-                    return $"{hours}h {mins}m";
+                    return "0 min";
                 }
-                return $"{totalMinutes} min";
+
+                if (TotalSeconds < 300)
+                {
+                    return $"{TotalSeconds / 60}:{TotalSeconds % 60:D2}";
+                }
+
+                return $"{TotalSeconds / 60} min";
             }
 
             if (ShowHours)

@@ -274,3 +274,121 @@ Steps:
 ## Next Steps
 
 Proceed with **Phase 1 — Project Scaffold** to initialize the Blazor WASM PWA project and verify local build/run.
+
+---
+
+## Phase 9 — Seconds-Based Timer Refactor
+
+### Background
+
+Post-implementation refactor to introduce dynamic step sizes, reduce max duration, and improve alarm sound.
+
+### Resolved Design Decisions
+
+| Question | Decision |
+|---|---|
+| Max duration | **30 minutes (1800 seconds)** — reduced from 160 minutes |
+| Step size below 5 min | **1-second increments** |
+| Step size at/above 5 min | **60-second (1-minute) increments** |
+| Threshold crossing mid-drag | **Immediate** — step size switches instantly as 5-min boundary is crossed during drag |
+| Wheel scale | **One full rotation = 30 minutes** |
+| Tick marks | **60 ticks** (one per 30 seconds), long tick every 5 minutes (every 10th tick) |
+| Minute-based API members | **Removed entirely** — clean break; no shims |
+| Alarm sound | **Web Notification API** (triggers OS sound on desktop) with **440 Hz sine-wave beep** as always-on fallback |
+
+### Overview of Changes
+
+| File | What Changes |
+|---|---|
+| `ITimerService.cs` | Replace minute-based members with seconds-based equivalents |
+| `TimerService.cs` | `MaxSeconds = 1800`; `SecondsPerRotation = 1800`; `SetDuration(int totalSeconds)`; `AddSeconds(int seconds)`; computed `TotalSeconds`, `CurrentRotationSeconds` |
+| `TimerWheel.razor` | Dual-step drag; 60 tick marks (30s each); seconds-based parameters; updated ARIA |
+| `TimeDisplay.razor` | SetTime mode: `M:SS` for <5 min, `X min` for ≥5 min |
+| `TimerPage.razor` | Wire `OnSecondsChanged`; request Notification permission on first interaction |
+| `AudioInterop.cs` | Add `RequestNotificationPermissionAsync` |
+| `audioInterop.js` | Notification API call + 440 Hz sine-wave fallback beep |
+| `TimerServiceTests.cs` | Update all minute-based assertions; add threshold/boundary tests |
+| `timer.spec.js` | Update display regex for seconds format; re-baseline snapshots |
+
+### Detailed Design
+
+#### `ITimerService` + `TimerService`
+
+Remove all minute-based members (`MaxMinutes`, `MinutesPerRotation`, `TotalMinutes`, `CurrentRotationMinutes`, `AddMinutes`).
+
+Add seconds-based equivalents:
+```csharp
+int MaxSeconds { get; }           // = 1800
+int SecondsPerRotation { get; }   // = 1800
+int TotalSeconds { get; }
+int CurrentRotationSeconds { get; }
+void SetDuration(int totalSeconds);
+void AddSeconds(int seconds);
+```
+
+`Rotations` is kept but will always be 0 or 1 at max (1800 s = 1 rotation).
+
+#### `TimerWheel.razor` — Dual-Step Drag Logic
+
+The threshold is 300 seconds (5 minutes). Step size is determined by current `TotalSeconds` at the moment of each pointer event:
+
+```
+stepSize = TotalSeconds >= 300 ? 60 : 1          // seconds
+degreesPerStep = (360.0 / 1800.0) * stepSize     // 12°/step at ≥5 min, 0.2°/step below
+steps = (int)(_accumulatedDelta / degreesPerStep)
+```
+
+Crossing the threshold mid-drag immediately changes step size for subsequent movement.
+
+**Progress arc:**
+```
+progress = CurrentRotationSeconds / 1800.0
+offset   = Circumference * (1 - progress)
+```
+
+**Tick marks:** 60 ticks at 6° intervals; long tick every 10th (= every 5 minutes).
+
+**Keyboard fallback buttons:** Apply same threshold rule — `+1` adds `stepSize` seconds, `-1` subtracts.
+
+**ARIA:**
+```html
+aria-valuemax="1800"
+aria-valuenow="@TotalSeconds"
+aria-valuetext="@FormatAriaValueText()"
+```
+
+#### `TimeDisplay.razor` — SetTime Format
+
+```
+TotalSeconds == 0       →  "0 min"
+0 < TotalSeconds < 300  →  "M:SS"   (e.g. "4:30")
+TotalSeconds >= 300     →  "X min"  (e.g. "5 min")
+```
+
+Running/paused mode display is unchanged (already uses `RemainingTime` as `TimeSpan`).
+
+#### `AudioInterop.js` — Alarm Sequence
+
+1. If `Notification.permission === 'granted'`: fire `new Notification('Timer finished!')` to trigger OS sound.
+2. Always play a 440 Hz sine-wave beep (1.5 s, exponential gain fade) as audible in-page fallback.
+3. `requestNotificationPermission()` called once on first user interaction.
+
+### Implementation Order
+
+1. `ITimerService.cs` + `TimerService.cs`
+2. `TimerPage.razor`
+3. `TimerWheel.razor`
+4. `TimeDisplay.razor`
+5. `AudioInterop.cs` + `audioInterop.js`
+6. `TimerServiceTests.cs`
+7. `timer.spec.js`
+
+### New Unit Tests to Add
+
+- `SetDuration(299)` — `TotalSeconds == 299`, `TotalMinutes == 4`
+- `SetDuration(300)` — boundary exact
+- `SetDuration(1800)` — at max
+- `SetDuration(1801)` — clamped to 1800
+- `AddSeconds(1)` from 299 → 300 (threshold crossing up)
+- `AddSeconds(-1)` from 300 → 299 (threshold crossing down)
+- `AddSeconds` floor at 0, ceiling at 1800

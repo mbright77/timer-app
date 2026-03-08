@@ -11,12 +11,11 @@ public enum TimerState
 
 public sealed class TimerService : ITimerService
 {
-    public const int MaxMinutes = 160;
-    public const int MinutesPerRotation = 60;
+    public const int MaxSeconds = 1800;
+    public const int SecondsPerRotation = 1800;
 
-    // Explicit interface property implementations backed by the constants above
-    int ITimerService.MaxMinutes => MaxMinutes;
-    int ITimerService.MinutesPerRotation => MinutesPerRotation;
+    int ITimerService.MaxSeconds => MaxSeconds;
+    int ITimerService.SecondsPerRotation => SecondsPerRotation;
 
     private PeriodicTimer? _timer;
     private CancellationTokenSource? _cts;
@@ -43,22 +42,22 @@ public sealed class TimerService : ITimerService
 
     public TimeSpan RemainingTime => _remainingTime;
     public TimeSpan TotalDuration => _totalDuration;
-    public int TotalMinutes => (int)_totalDuration.TotalMinutes;
-    public int Rotations => TotalMinutes / MinutesPerRotation;
-    public int CurrentRotationMinutes => TotalMinutes % MinutesPerRotation;
+    public int TotalSeconds => (int)_totalDuration.TotalSeconds;
+    public int Rotations => 0;
+    public int CurrentRotationSeconds => TotalSeconds;
 
     public bool CanStart => State == TimerState.SetTime && _totalDuration.TotalSeconds > 0;
     public bool CanPause => State == TimerState.Running;
     public bool CanResume => State == TimerState.Paused;
     public bool IsRunning => State == TimerState.Running || State == TimerState.Paused;
 
-    public void SetDuration(int minutes)
+    public void SetDuration(int totalSeconds)
     {
-        minutes = Math.Clamp(minutes, 0, MaxMinutes);
-        _totalDuration = TimeSpan.FromMinutes(minutes);
+        totalSeconds = Math.Clamp(totalSeconds, 0, MaxSeconds);
+        _totalDuration = TimeSpan.FromSeconds(totalSeconds);
         _remainingTime = _totalDuration;
 
-        if (minutes > 0)
+        if (totalSeconds > 0)
         {
             State = TimerState.SetTime;
         }
@@ -68,10 +67,10 @@ public sealed class TimerService : ITimerService
         }
     }
 
-    public void AddMinutes(int minutes)
+    public void AddSeconds(int seconds)
     {
-        var newMinutes = TotalMinutes + minutes;
-        SetDuration(newMinutes);
+        var newTotalSeconds = TotalSeconds + seconds;
+        SetDuration(newTotalSeconds);
     }
 
     public void Start()

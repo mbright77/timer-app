@@ -10,16 +10,17 @@
 <div class="timer-page">
     <TimeDisplay 
         RemainingTime="@displayTime" 
+        TotalSeconds="@TimerService.TotalSeconds"
         IsFinished="@isFinished"
         IsSetTimeMode="@isSetTimeMode"
     />
 
     <TimerWheel 
-        TotalMinutes="@TimerService.TotalMinutes"
-        CurrentRotationMinutes="@TimerService.CurrentRotationMinutes"
+        TotalSeconds="@TimerService.TotalSeconds"
+        CurrentRotationSeconds="@TimerService.CurrentRotationSeconds"
         Rotations="@TimerService.Rotations"
         IsRunning="@TimerService.IsRunning"
-        OnMinutesChanged="OnMinutesChanged"
+        OnSecondsChanged="OnSecondsChanged"
     />
 
     <ControlButtons 
@@ -36,6 +37,7 @@
 @code {
     private bool isFinished => TimerService.State == TimerState.Finished;
     private bool isSetTimeMode => TimerService.State == TimerState.SetTime || TimerService.State == TimerState.Idle;
+    private bool _notificationPermissionRequested;
     private TimeSpan displayTime => TimerService.State == TimerState.Idle 
         ? TimeSpan.Zero 
         : TimerService.RemainingTime;
@@ -61,16 +63,28 @@
 #pragma warning restore CS1998
 #pragma warning restore CS4014
 
-    private void OnMinutesChanged(int minutes)
+    private async Task EnsureNotificationPermissionAsync()
     {
-        TimerService.SetDuration(minutes);
+        if (_notificationPermissionRequested)
+        {
+            return;
+        }
+
+        _notificationPermissionRequested = true;
+        await AudioInterop.RequestNotificationPermissionAsync(JS);
+    }
+
+    private async void OnSecondsChanged(int seconds)
+    {
+        await EnsureNotificationPermissionAsync();
+        TimerService.SetDuration(seconds);
         StateHasChanged();
     }
 
-    private Task HandleStart()
+    private async Task HandleStart()
     {
+        await EnsureNotificationPermissionAsync();
         TimerService.Start();
-        return Task.CompletedTask;
     }
 
     private Task HandlePause()

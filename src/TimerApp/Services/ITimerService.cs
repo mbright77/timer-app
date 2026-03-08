@@ -2,15 +2,15 @@ namespace TimerApp.Services;
 
 public interface ITimerService : IAsyncDisposable
 {
-    int MaxMinutes { get; }
-    int MinutesPerRotation { get; }
+    int MaxSeconds { get; }
+    int SecondsPerRotation { get; }
 
     TimerState State { get; }
     TimeSpan RemainingTime { get; }
     TimeSpan TotalDuration { get; }
-    int TotalMinutes { get; }
+    int TotalSeconds { get; }
     int Rotations { get; }
-    int CurrentRotationMinutes { get; }
+    int CurrentRotationSeconds { get; }
     bool CanStart { get; }
     bool CanPause { get; }
     bool CanResume { get; }
@@ -20,8 +20,8 @@ public interface ITimerService : IAsyncDisposable
     event Action? OnFinished;
     event Action<TimerState>? OnStateChanged;
 
-    void SetDuration(int minutes);
-    void AddMinutes(int minutes);
+    void SetDuration(int totalSeconds);
+    void AddSeconds(int seconds);
     void Start();
     void Pause();
     void Resume();

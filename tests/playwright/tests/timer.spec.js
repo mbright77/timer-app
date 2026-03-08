@@ -11,6 +11,19 @@ const VIEWPORTS = [
 const COLOR_SCHEMES = ['light', 'dark'];
 
 /**
+ * Click a visually-hidden button by dispatching a DOM click event directly.
+ * Required because keyboard-hint buttons use sr-only styling (position:absolute,
+ * 1x1px clip) and Playwright's normal click cannot reach them.
+ */
+async function clickHidden(page, ariaLabel) {
+  await page.evaluate((label) => {
+    const btn = document.querySelector(`button[aria-label="${label}"]`);
+    if (!btn) throw new Error(`Button not found: ${label}`);
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  }, ariaLabel);
+}
+
+/**
  * Wait for Blazor to finish loading (loading spinner gone, timer page visible).
  */
 async function waitForBlazor(page) {
@@ -74,37 +87,34 @@ test('initial state: SVG wheel is rendered', async ({ page }) => {
   await expect(svg).toBeVisible();
 });
 
-// ─── +1 / -1 minute buttons ───────────────────────────────────────────────────
+// ─── +1 / -1 dynamic-step buttons ──────────────────────────────────────────────
 
-test('plus-one button increments time by 1 minute', async ({ page }) => {
+test('plus-one button increments time by 1 second below 5 minutes', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  const plusBtn = page.locator('button[aria-label="+1 minute"], button', { hasText: '+1' });
-  await plusBtn.first().click();
+  await clickHidden(page, 'Increase time by dynamic step (keyboard: arrow right/up)');
 
   const display = page.locator('.time-display');
   const text = await display.textContent();
-  expect(text).toMatch(/1\s*min|1:00|01:00/);
+  expect(text).toMatch(/0:01|00:01/);
 });
 
 test('minus-one button is disabled at zero', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  const minusBtn = page.locator('button[aria-label="-1 minute"], button', { hasText: '-1' });
-  await expect(minusBtn.first()).toBeDisabled();
+  const minusBtn = page.locator('button[aria-label="Decrease time by dynamic step (keyboard: arrow left/down)"]');
+  const isDisabled = await minusBtn.evaluate(el => el.disabled);
+  expect(isDisabled).toBe(true);
 });
 
 test('plus-one then minus-one returns to 0', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  const plusBtn = page.locator('button[aria-label="+1 minute"], button', { hasText: '+1' });
-  const minusBtn = page.locator('button[aria-label="-1 minute"], button', { hasText: '-1' });
-
-  await plusBtn.first().click();
-  await minusBtn.first().click();
+  await clickHidden(page, 'Increase time by dynamic step (keyboard: arrow right/up)');
+  await clickHidden(page, 'Decrease time by dynamic step (keyboard: arrow left/down)');
 
   const display = page.locator('.time-display');
   const text = await display.textContent();
@@ -117,8 +127,7 @@ test('Start button enables after setting time', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  const plusBtn = page.locator('button[aria-label="+1 minute"], button', { hasText: '+1' });
-  await plusBtn.first().click();
+  await clickHidden(page, 'Increase time by dynamic step (keyboard: arrow right/up)');
 
   const startBtn = page.locator('button', { hasText: /start/i });
   await expect(startBtn).toBeEnabled();
@@ -128,9 +137,7 @@ test('clicking Start transitions to running state', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  // Set 5 minutes
-  const plusBtn = page.locator('button[aria-label="+1 minute"], button', { hasText: '+1' });
-  for (let i = 0; i < 5; i++) await plusBtn.first().click();
+  for (let i = 0; i < 5; i++) await clickHidden(page, 'Increase time by dynamic step (keyboard: arrow right/up)');
 
   const startBtn = page.locator('button', { hasText: /start/i });
   await startBtn.click();
@@ -144,8 +151,7 @@ test('clicking Pause shows Resume button', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  const plusBtn = page.locator('button[aria-label="+1 minute"], button', { hasText: '+1' });
-  for (let i = 0; i < 5; i++) await plusBtn.first().click();
+  for (let i = 0; i < 5; i++) await clickHidden(page, 'Increase time by dynamic step (keyboard: arrow right/up)');
 
   await page.locator('button', { hasText: /start/i }).click();
   await page.locator('button', { hasText: /pause/i }).click();
@@ -158,8 +164,7 @@ test('Reset returns to idle state', async ({ page }) => {
   await page.goto('/timer-app/');
   await waitForBlazor(page);
 
-  const plusBtn = page.locator('button[aria-label="+1 minute"], button', { hasText: '+1' });
-  for (let i = 0; i < 5; i++) await plusBtn.first().click();
+  for (let i = 0; i < 5; i++) await clickHidden(page, 'Increase time by dynamic step (keyboard: arrow right/up)');
 
   await page.locator('button', { hasText: /start/i }).click();
   await page.locator('button', { hasText: /pause/i }).click();
