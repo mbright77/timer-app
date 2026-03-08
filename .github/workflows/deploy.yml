@@ -30,7 +30,7 @@ jobs:
         run: dotnet restore src/TimerApp/TimerApp.csproj
 
       - name: Build
-        run: dotnet publish src/TimerApp/TimerApp.csproj -c Release -o publish/wwwroot --no-restore
+        run: dotnet publish src/TimerApp/TimerApp.csproj -c Release -o publish --no-restore
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
